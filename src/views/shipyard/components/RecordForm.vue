@@ -61,7 +61,7 @@ try {
 } catch {}
 const form=reactive({projectId:draftProject,areaId:'',type:'包工',date:props.data.serverDate,start:props.data.serverDate,end:props.data.serverDate,people:[],hours:{},allocations:{},duration:1,amount:0,category:categories[0],person:'',note:'',files:[],requestKey:requestKey(),...(props.record?JSON.parse(JSON.stringify(props.record)):{}),...draft})
 form.areaId=form.areaId==null?'':String(form.areaId)
-const areas=computed(()=>props.data.areas.filter(a=>Number(a.projectId)===Number(form.projectId)&&!a.completedAt)),people=computed(()=>props.data.people.filter(p=>form.people.includes(p.id)))
+const areas=computed(()=>props.data.areas.filter(a=>Number(a.projectId)===Number(form.projectId)&&!a.completedAt&&(props.kind!=='用工'||!a.completionRequestedAt))),people=computed(()=>props.data.people.filter(p=>form.people.includes(p.id)))
 const total=computed(()=>form.type==='包工'?people.value.reduce((sum,p)=>sum+Number(form.allocations[p.id]||0),0):sumHourlyWages(people.value.map(p=>({rate:p.rate,hours:form.type==='加班'?form.duration:form.hours[p.id]}))))
 function close(){if(!busy.value&&!uploading.value)emit('close')}
 function saveDraft(){try{localStorage.setItem(draftKey(form.projectId),JSON.stringify(form));ElMessage.success('草稿已保存到当前浏览器')}catch{error.value='浏览器无法保存草稿，请检查存储空间或直接提交'}}
@@ -71,6 +71,7 @@ async function submit(){
  error.value=''
  if(!form.projectId||!form.note.trim())return error.value='请选择工程并填写申请说明'
  if(props.kind!=='报销'&&!form.areaId)return error.value='请选择工作区域'
+ if(props.kind==='用工'&&!areas.value.some(a=>String(a.id)===String(form.areaId)))return error.value='工作区域已完工、待确认完工或不可访问，请重新选择'
  if(props.kind==='用工'&&!form.people.length)return error.value='请选择工作人员'
  if(props.kind==='用工'&&form.type==='包工'&&Math.round(total.value*100)!==Math.round(Number(form.amount)*100))return error.value='每人工资分配合计必须等于包工总价'
  if(props.kind==='报销'&&!form.files.length)return error.value='请上传发票凭证'

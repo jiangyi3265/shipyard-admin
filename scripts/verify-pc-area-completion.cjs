@@ -37,7 +37,7 @@ async function login(username) {
   await page.getByPlaceholder('账号', { exact: true }).fill(username); await page.getByPlaceholder('密码', { exact: true }).fill(credentials.password)
   await page.getByPlaceholder('验证码', { exact: true }).fill(String(code)); await page.getByPlaceholder('验证码', { exact: true }).press('Tab')
   const signed = response(page, '/login'); await page.getByRole('button', { name: '登 录', exact: true }).click(); await data(signed)
-  await page.getByRole('heading', { name: '我的待办', exact: true }).waitFor(); await refresh(page); return page
+  await page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor(); await refresh(page); return page
 }
 async function requestCompletion(page) { await tab(page, '工程与人员'); const wait = response(page, '/shipyard/areas/' + fixtures.areaId + '/completion-request'); await row(page).getByRole('button', { name: '提交完工', exact: true }).click(); await confirm(page); await data(wait); await row(page).getByRole('cell').filter({ hasText: '待确认完工' }).waitFor() }
 ;(async () => {

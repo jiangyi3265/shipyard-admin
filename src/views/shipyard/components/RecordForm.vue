@@ -10,7 +10,8 @@
           <el-form-item label="开始日期"><el-date-picker v-model="form.start" value-format="YYYY-MM-DD" aria-label="开始日期" /></el-form-item>
           <el-form-item label="结束日期"><el-date-picker v-model="form.end" value-format="YYYY-MM-DD" aria-label="结束日期" /></el-form-item>
         </div>
-        <el-form-item v-else label="施工日期"><el-date-picker v-model="form.date" value-format="YYYY-MM-DD" aria-label="施工日期" /></el-form-item>
+        <el-form-item v-if="form.type==='包工'" label="工资归属月"><el-date-picker v-model="form.payrollMonth" type="month" value-format="YYYY-MM" :disabled-date="outsideContractMonths" :clearable="false" aria-label="工资归属月" /><span class="hint">须在开始与结束月份之间，工资结算按此月份归集</span></el-form-item>
+        <el-form-item v-else label="施工日期"><el-date-picker v-model="form.date" value-format="YYYY-MM-DD" :disabled-date="workDateDisabled" aria-label="施工日期" /><span v-if="!isAdmin" class="hint">可补报近 {{backfillDays}} 天（{{earliestWorkDate}} 起），更早记录请联系管理员登记</span></el-form-item>
         <el-form-item label="工作人员班组筛选"><TeamSelect v-model="teamFilter" label="工作人员班组筛选" filter /></el-form-item>
         <el-form-item label="具体班组筛选"><CrewSelect v-model="crewFilter" :crews="data.crews" label="具体班组筛选" filter /></el-form-item>
         <el-form-item label="工作人员"><el-select v-model="form.people" multiple filterable aria-label="工作人员"><el-option v-for="p in filteredPeople" :key="p.id" :value="p.id" :label="p.name+' · '+p.code" /></el-select></el-form-item>
@@ -28,7 +29,7 @@
         <p class="hint">预计工资 ¥{{money(total)}}，提交后以服务器计算并保存的工资快照为准。</p>
       </template>
       <template v-else>
-        <el-form-item label="业务日期"><el-date-picker v-model="form.date" value-format="YYYY-MM-DD" aria-label="业务日期" /></el-form-item>
+        <el-form-item label="业务日期"><el-date-picker v-model="form.date" value-format="YYYY-MM-DD" :disabled-date="isFuture" :clearable="false" aria-label="业务日期" /></el-form-item>
         <el-form-item v-if="kind==='报销'" label="报销类别"><el-select v-model="form.category" aria-label="报销类别"><el-option v-for="c in categories" :key="c" :label="c" :value="c" /></el-select></el-form-item>
         <template v-else><el-form-item label="具体班组筛选"><CrewSelect v-model="crewFilter" :crews="data.crews" label="具体班组筛选" filter /></el-form-item><el-form-item label="工作人员班组筛选"><TeamSelect v-model="teamFilter" label="工作人员班组筛选" filter /></el-form-item><el-form-item label="被罚人员"><el-select v-model="form.person" filterable aria-label="被罚人员"><el-option v-for="p in filteredPeople" :key="p.id" :value="p.id" :label="p.name+' · '+p.code" /></el-select></el-form-item></template>
         <el-form-item :label="kind+'金额'"><el-input-number v-model="form.amount" :min="0.01" :precision="2" :aria-label="kind+'金额'" /></el-form-item>
@@ -45,9 +46,9 @@
   </el-drawer>
 </template>
 <script setup>
-import {reactive,computed,ref} from 'vue'
+import {reactive,computed,ref,watch} from 'vue'
 import {ElMessage} from 'element-plus'
-import {uploadImage,requestKey,money} from '@/api/shipyard'
+import {uploadImage,requestKey,money,dayText,shiftDay} from '@/api/shipyard'
 import {sumHourlyWages} from '@/utils/wage-preview'
 import PrivateImages from './PrivateImages.vue'
 import TeamSelect from './TeamSelect.vue'
@@ -68,8 +69,17 @@ try {
  const sameRecord=props.record ? saved.id===props.record.id && saved.version===props.record.version : !saved.id
  if(saved && String(saved.projectId)===String(draftProject) && sameRecord)draft=saved
 } catch {}
-const form=reactive({projectId:draftProject,areaId:'',type:'包工',date:props.data.serverDate,start:props.data.serverDate,end:props.data.serverDate,people:[],hours:{},allocations:{},duration:1,amount:0,category:categories[0],person:'',note:'',files:[],requestKey:requestKey(),...(props.record?JSON.parse(JSON.stringify(props.record)):{}),...draft})
+const form=reactive({projectId:draftProject,areaId:'',type:'包工',date:props.data.serverDate,start:props.data.serverDate,end:props.data.serverDate,people:[],hours:{},allocations:{},duration:1,amount:0,payrollMonth:'',category:categories[0],person:'',note:'',files:[],requestKey:requestKey(),...(props.record?JSON.parse(JSON.stringify(props.record)):{}),...draft})
 form.areaId=form.areaId==null?'':String(form.areaId)
+// Q09: hourly and overtime work may be back-filled for a limited window; administrators are exempt.
+const isAdmin=computed(()=>(props.data.roles||[]).some(r=>r==='admin'||r==='sy_admin')),backfillDays=computed(()=>Number(props.data.backfillDays??7)),earliestWorkDate=computed(()=>shiftDay(props.data.serverDate,-backfillDays.value))
+const isFuture=d=>dayText(d)>props.data.serverDate
+function workDateAllowed(day){if(!day||day>props.data.serverDate)return false;return isAdmin.value||day===props.record?.date||day>=earliestWorkDate.value}
+const workDateDisabled=d=>!workDateAllowed(dayText(d))
+// Q08: contract wages belong to one month between the start and end months (default: the start month).
+const contractMonths=()=>[String(form.start||'').slice(0,7),String(form.end||form.start||'').slice(0,7)]
+const outsideContractMonths=d=>{const m=dayText(d).slice(0,7),[from,to]=contractMonths();return m<from||m>to}
+watch(()=>[form.start,form.end],()=>{const [from,to]=contractMonths();if(!form.payrollMonth||form.payrollMonth<from||form.payrollMonth>to)form.payrollMonth=from},{immediate:true})
 const areas=computed(()=>props.data.areas.filter(a=>Number(a.projectId)===Number(form.projectId)&&!a.completedAt&&(props.kind!=='用工'||!a.completionRequestedAt))),people=computed(()=>props.data.people.filter(p=>form.people.includes(p.id)))
 const total=computed(()=>form.type==='包工'?people.value.reduce((sum,p)=>sum+Number(form.allocations[p.id]||0),0):sumHourlyWages(people.value.map(p=>({rate:p.rate,hours:form.type==='加班'?form.duration:form.hours[p.id]}))))
 function close(){if(!busy.value&&!uploading.value)emit('close')}
@@ -82,9 +92,14 @@ async function submit(){
  if(props.kind!=='报销'&&!form.areaId)return error.value='请选择工作区域'
  if(props.kind==='用工'&&!areas.value.some(a=>String(a.id)===String(form.areaId)))return error.value='工作区域已完工、待确认完工或不可访问，请重新选择'
  if(props.kind==='用工'&&!form.people.length)return error.value='请选择工作人员'
+ if(props.kind==='用工'&&form.type!=='包工'&&!form.date)return error.value='请选择施工日期'
+ if(props.kind==='用工'&&form.type!=='包工'&&form.date>props.data.serverDate)return error.value='施工日期不能晚于今天'
+ if(props.kind==='用工'&&form.type!=='包工'&&!workDateAllowed(form.date))return error.value='只能补报近'+backfillDays.value+'天的点工和加班，更早的记录请联系管理员登记'
+ if(props.kind==='用工'&&form.type==='包工'){const [from,to]=contractMonths();if(form.end<form.start)return error.value='结束日期不能早于开始日期';if(!form.payrollMonth||form.payrollMonth<from||form.payrollMonth>to)return error.value='工资归属月须在包工开始与结束月份之间'}
+ if(props.kind!=='用工'&&(!form.date||form.date>props.data.serverDate))return error.value='请选择业务日期，且不能晚于今天'
  if(props.kind==='用工'&&form.type==='包工'&&Math.round(total.value*100)!==Math.round(Number(form.amount)*100))return error.value='每人工资分配合计必须等于包工总价'
  if(props.kind==='报销'&&!form.files.length)return error.value='请上传发票凭证'
  busy.value=true
- try{const item=await props.write('/records'+(form.id?'/'+form.id:''),{...form,kind:props.kind},form.id?'PUT':'POST');try{localStorage.removeItem(draftKey(form.projectId))}catch{};ElMessage.success('申请已提交');emit('saved',item);emit('close')}catch(e){error.value=e.message}finally{busy.value=false}
+ try{const body={...form,kind:props.kind};if(props.kind!=='用工'||form.type!=='包工')delete body.payrollMonth;const item=await props.write('/records'+(form.id?'/'+form.id:''),body,form.id?'PUT':'POST');try{localStorage.removeItem(draftKey(form.projectId))}catch{};ElMessage.success('申请已提交');emit('saved',item);emit('close')}catch(e){error.value=e.message}finally{busy.value=false}
 }
 </script>

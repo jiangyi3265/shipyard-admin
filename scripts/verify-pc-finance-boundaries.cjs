@@ -58,6 +58,8 @@ async function checkPayroll() {
       if (endpoint === '/getInfo') result = { code: 200, user: { userId: 10, userName: 'test', nickName: '隔离测试' }, roles: fixture.roles, permissions: fixture.grants }
       else if (endpoint === '/getRouters') result = { code: 200, data: [] }
       else if (endpoint === '/shipyard/bootstrap') result = { code: 200, data: fixture }
+      else if (endpoint === '/shipyard/files' && route.request().method() === 'POST') result = { code: 200, data: { id: 'file:1' } }
+      else if (endpoint === '/shipyard/files/1') result = { code: 200, data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' }
       else if (endpoint === '/shipyard/payroll/settle') {
         settlements.push(route.request().postDataJSON())
         fixture.payroll[0].paid = true
@@ -97,12 +99,19 @@ async function checkPayroll() {
     await refresh()
     await row.locator('.el-checkbox').click()
     await settle.click()
-    await page.locator('.el-message-box').getByRole('button', { name: '确定', exact: true }).click()
+    const confirmPaid = page.locator('.el-drawer__footer').getByRole('button', { name: '确认已支付', exact: true })
+    assert.equal(await confirmPaid.isDisabled(), true)
+    await page.getByLabel('上传工资支付凭证').setInputFiles(path.join(root, '../船厂/static/test/receipt-placeholder.png'))
+    await page.waitForFunction(() => [...document.querySelectorAll('.el-drawer__footer button')].some(b => b.textContent.trim() === '确认已支付' && !b.disabled))
+    await confirmPaid.click()
     await page.getByText('已登记工资 ¥80.00', { exact: true }).waitFor()
     assert.equal(settlements.length, 1)
     assert.deepEqual(settlements[0].lineIds, [101])
     assert.equal(settlements[0].projectId, 1)
     assert.equal(settlements[0].month, '2026-11')
+    assert.equal(settlements[0].date, '2026-11-04')
+    assert.equal(settlements[0].method, '银行转账')
+    assert.equal(settlements[0].proof, 'file:1')
     assert.equal(await settle.isDisabled(), true)
     assert.deepEqual(errors, [])
     console.log('PASS an explicitly selected wage line settles once and clears selection')

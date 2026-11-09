@@ -34,6 +34,10 @@ export async function uploadImage(file) {
   return (await shipyardApi('/files', 'POST', form)).id
 }
 export const requestKey = () => crypto.randomUUID()
+export const payMethods = ['银行转账', '微信转账', '现金']
+// Local calendar day of a picker Date, compared as text with the server's YYYY-MM-DD.
+export const dayText = date => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
+export function shiftDay(day, days) { const [y, m, d] = String(day).split('-').map(Number); return dayText(new Date(y, m - 1, d + days)) }
 export const money = value => Number(value || 0).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 export function exportCsv(title, rows) {
   const escape = value => {

@@ -4,7 +4,7 @@ import { shipyardApi } from '@/api/shipyard'
 import { getToken } from '@/utils/auth'
 
 export function useShipyard() {
-  const data = reactive({user: {}, roles: [], grants: [], projects: [], areas: [], people: [], crews: [], crewLeaders: [], workerArchive: undefined, records: [], payroll: [], monthlyPayroll: [], transactions: [], attendance: [], notifications: [], serverDate: ''})
+  const data = reactive({user: {}, roles: [], grants: [], projects: [], areas: [], people: [], crews: [], crewLeaders: [], workerArchive: undefined, records: [], payroll: [], monthlyPayroll: [], transactions: [], payrollBatches: [], reversalReviewer: false, backfillDays: 7, attendance: [], notifications: [], serverDate: ''})
   const loading = ref(false), ready = ref(false), error = ref(''), projectId = ref(''), month = ref(''), updated = ref(''), busy = ref(false)
   let pending, timer, disposed = false
   const can = key => data.grants.includes('*:*:*') || data.grants.includes('shipyard:' + key)

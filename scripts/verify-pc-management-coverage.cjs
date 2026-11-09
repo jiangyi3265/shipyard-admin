@@ -75,7 +75,7 @@ async function run() {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) })
     })
     await page.goto(base + '/shipyard/workspace/workbench')
-    await page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+    await page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
     const nav = async name => { await page.getByRole('navigation', { name: '船厂业务导航' }).getByRole('button', { name, exact: true }).click(); await page.getByRole('heading', { name, exact: true }).first().waitFor() }
     const visibleDrawer = () => page.locator('.el-drawer:visible')
     const refresh = async () => { await page.getByRole('button', { name: '刷新数据', exact: true }).click(); await page.locator('button.is-loading').filter({ hasText: '刷新数据' }).waitFor({ state: 'hidden' }) }
@@ -258,7 +258,7 @@ async function run() {
     await test('组长入口按授权收敛，强行访问账号页返回工作台', async () => {
       fixture.user = { id: 20, name: '测试组长' }; fixture.roles = ['sy_leader']; fixture.grants = ['shipyard:work:submit', 'shipyard:expense:submit']
       await page.goto(base + '/shipyard/workspace/accounts')
-      await page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+      await page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
       assert.equal(await page.getByRole('navigation', { name: '船厂业务导航' }).getByRole('button', { name: '账号权限', exact: true }).count(), 0)
       assert.equal(page.url().endsWith('/workbench'), true)
     })
@@ -276,7 +276,7 @@ async function run() {
         fixture.roles = [role]; fixture.grants = grants.map(grant => grant === '*:*:*' ? grant : 'shipyard:' + grant)
         fixture.workerArchive = role === 'sy_admin' ? fullArchive : []
         await page.goto(base + '/shipyard/workspace/workbench')
-        await page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+        await page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
         assert.equal(await page.getByRole('navigation', { name: '船厂业务导航' }).getByRole('button').count(), tabCount, role)
         for (const action of ['新增用工', '申请报销', '登记罚款']) assert.equal(await page.getByRole('button', { name: action, exact: true }).count(), actions.includes(action) ? 1 : 0, role + ':' + action)
         await nav('工程与人员')

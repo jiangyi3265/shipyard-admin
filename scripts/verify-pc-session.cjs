@@ -1,7 +1,7 @@
 const {chromium}=require('./playwright-runtime.cjs'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..'),base='http://127.0.0.1:5181',credentials=require('./test-credentials.cjs').load();
 let browser;const errors=[];
-async function fillLogin(p,user,data){const code=JSON.parse(execFileSync('redis-cli',['-p','6383','-n','1','--raw','GET','captcha_codes:'+data.uuid],{encoding:'utf8',windowsHide:true}));await p.getByPlaceholder('账号',{exact:true}).fill(user);await p.getByPlaceholder('密码',{exact:true}).fill(credentials.password);await p.getByPlaceholder('验证码',{exact:true}).fill(String(code));await p.getByRole('button',{name:'登 录',exact:true}).click();await p.getByRole('heading',{name:'我的待办',exact:true}).waitFor({timeout:60000})}
+async function fillLogin(p,user,data){const code=JSON.parse(execFileSync('redis-cli',['-p','6383','-n','1','--raw','GET','captcha_codes:'+data.uuid],{encoding:'utf8',windowsHide:true}));await p.getByPlaceholder('账号',{exact:true}).fill(user);await p.getByPlaceholder('密码',{exact:true}).fill(credentials.password);await p.getByPlaceholder('验证码',{exact:true}).fill(String(code));await p.getByRole('button',{name:'登 录',exact:true}).click();await p.getByRole('heading',{name:'待处理事项',exact:true}).waitFor({timeout:60000})}
 (async()=>{
  browser=await chromium.launch({headless:true});const p=await browser.newPage({viewport:{width:1440,height:1000}});p.on('pageerror',e=>errors.push(e.message));
  let wait=p.waitForResponse(r=>r.url().endsWith('/captchaImage'));await p.goto(base+'/login');await fillLogin(p,'admin',await(await wait).json());await p.getByRole('button',{name:'账号权限',exact:true}).waitFor();

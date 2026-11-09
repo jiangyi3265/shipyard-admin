@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
-import { reactive, computed, ref } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { hourlyWageCents, sumHourlyWages } from '../src/utils/wage-preview.js'
 
@@ -48,7 +48,10 @@ function formState(record, draft) {
     areas: [{ id: '7', projectId: 1, name: 'A 区', completedAt: null }],
     people: [{ id: 1, name: '工人一', rate: 35.35 }, { id: 2, name: '工人二', rate: 35.35 }]
   }, write: async (path, body, method) => { submissions.push({ path, body: JSON.parse(JSON.stringify(body)), method }); return body } }
-  const sandbox = { reactive, computed, ref, sumHourlyWages, defineProps: () => props, defineEmits: () => () => {},
+  // Same calendar helpers as src/api/shipyard.js (the form limits backfill dates with them).
+  const dayText = date => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
+  const shiftDay = (day, days) => { const [y, m, d] = String(day).split('-').map(Number); return dayText(new Date(y, m - 1, d + days)) }
+  const sandbox = { reactive, computed, ref, watch, dayText, shiftDay, sumHourlyWages, defineProps: () => props, defineEmits: () => () => {},
     requestKey: () => 'wage_preview_test_request', ElMessage: { success() {} },
     localStorage: { getItem: () => draft ? JSON.stringify(draft) : null, removeItem() {}, setItem() {} } }
   vm.runInNewContext(setup + '\nglobalThis.result = {form, areas, people, total, submit}', sandbox)

@@ -37,7 +37,7 @@ let browser, role
   await page.getByPlaceholder('密码', { exact: true }).fill(password)
   await page.getByPlaceholder('验证码', { exact: true }).fill(codeFor(captcha.uuid))
   await page.getByRole('button', { name: '登 录', exact: true }).click()
-  await page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+  await page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
   await page.getByRole('navigation', { name: '船厂业务导航' }).getByRole('button', { name: '申请与审批', exact: true }).click()
   await page.getByRole('textbox', { name: '搜索申请', exact: true }).fill(work.id)
   await page.getByRole('button', { name: '查看详情', exact: true }).click()

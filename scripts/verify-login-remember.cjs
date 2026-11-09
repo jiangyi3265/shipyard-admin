@@ -43,7 +43,7 @@ const bootstrap = { user: { id: 10, name: '本地测试管理员' }, roles: ['sy
   const login = async () => {
     await password().fill('Fixture-only-input')
     await page.getByRole('button', { name: '登 录', exact: true }).click()
-    await page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+    await page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
   }
   await openLogin()
   assert.equal(await user().inputValue(), 'remember-fixture')

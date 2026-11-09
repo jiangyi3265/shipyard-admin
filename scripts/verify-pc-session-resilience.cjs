@@ -63,7 +63,7 @@ async function check(name, run) {
         await s.page.waitForTimeout(150)
         assert.equal(await s.page.getByRole('button', { name: '登 录 中...', exact: true }).count(), 1, 'Pending login must remain loading after another Enter')
         assert.equal(s.requests.filter(r => r.endpoint === '/login').length, 1)
-        release.resolve(); await s.page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+        release.resolve(); await s.page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
         assert.deepEqual(s.errors, []); assert.deepEqual(s.unexpected, [])
       } finally { release.resolve(); await s.context.close() }
     })
@@ -79,7 +79,7 @@ async function check(name, run) {
         await s.page.locator('.login-code').click()
         await s.page.waitForFunction(() => document.querySelector('.login-code-img')?.src.startsWith('data:'))
         await fillLogin(s.page); await s.page.getByRole('button', { name: '登 录', exact: true }).click()
-        await s.page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+        await s.page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
         assert.deepEqual(s.errors, []); assert.deepEqual(s.unexpected, [])
       } finally { await s.context.close() }
     })
@@ -102,7 +102,7 @@ async function check(name, run) {
         first.catch(() => {})
         release.resolve(); await first
         await fillLogin(s.page); await s.page.getByRole('button', { name: '登 录', exact: true }).click()
-        await s.page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+        await s.page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
         const login = s.requests.find(r => r.endpoint === '/login')
         assert.equal(JSON.parse(login.body).uuid, 'latest-challenge')
         assert.deepEqual(s.errors, []); assert.deepEqual(s.unexpected, [])
@@ -156,7 +156,7 @@ async function check(name, run) {
         assert.equal(captchas, 2, 'The consumed captcha must be refreshed after the login route is restored')
         assert.equal((await s.context.cookies()).some(c => c.name === 'Admin-Token'), false)
         await fillLogin(s.page); await submit.click()
-        await s.page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+        await s.page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
         assert.equal(s.requests.filter(r => r.endpoint === '/login').length, 2)
         assert.deepEqual(s.errors, []); assert.deepEqual(s.unexpected, [])
       } finally { await s.context.close() }
@@ -190,7 +190,7 @@ async function check(name, run) {
       } })
       try {
         await s.page.goto(base + '/shipyard/workspace/workbench')
-        await s.page.getByRole('heading', { name: '我的待办', exact: true }).waitFor()
+        await s.page.getByRole('heading', { name: '待处理事项', exact: true }).waitFor()
         expired = true; await s.page.getByRole('button', { name: '刷新数据', exact: true }).click()
         await s.page.getByPlaceholder('账号', { exact: true }).waitFor()
         assert.equal((await s.context.cookies()).some(c => c.name === 'Admin-Token'), false)

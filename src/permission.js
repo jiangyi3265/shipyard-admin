@@ -32,8 +32,8 @@ router.beforeEach((to, from, next) => {
         isRelogin.show = true
         // 判断当前用户是否已拉取完user_info信息
         useUserStore().getInfo().then(() => {
-          isRelogin.show = false
-          usePermissionStore().generateRoutes().then(accessRoutes => {
+          return usePermissionStore().generateRoutes().then(accessRoutes => {
+            isRelogin.show = false
             // 根据roles权限生成可访问的路由表
             accessRoutes.forEach(route => {
               if (!isHttp(route.path)) {
@@ -42,11 +42,12 @@ router.beforeEach((to, from, next) => {
             })
             next({ ...to, replace: true }) // hack方法 确保addRoutes已完成
           })
-        }).catch(err => {
-          useUserStore().logOut().then(() => {
-            ElMessage.error(err)
-            next({ path: '/' })
-          })
+        }).catch(async err => {
+          // Local session cleanup still runs when the remote logout is unavailable.
+          try { await useUserStore().logOut() } catch {}
+          isRelogin.show = false
+          ElMessage.error(err?.message || String(err))
+          next({ path: '/login', query: { redirect: to.fullPath } })
         })
       } else {
         next()

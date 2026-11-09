@@ -2,7 +2,10 @@
 const { chromium } = require('./playwright-runtime.cjs')
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict'), { execFileSync } = require('node:child_process')
 const credentials = require('./test-credentials.cjs').load()
-const base = 'http://127.0.0.1:5197', apiPrefix = '/dev-api'
+const baseUrl = new URL(process.env.SHIPYARD_ADMIN_BASE || 'http://127.0.0.1:5197')
+assert.ok(['127.0.0.1', 'localhost'].includes(baseUrl.hostname), 'PC completion test only allows loopback hosts')
+assert.ok(['http:', 'https:'].includes(baseUrl.protocol) && !baseUrl.username && !baseUrl.password && baseUrl.pathname === '/' && !baseUrl.search && !baseUrl.hash, 'PC completion test requires a plain local origin')
+const base = baseUrl.origin, apiPrefix = '/dev-api'
 const out = path.resolve(__dirname, '../artifacts/pc-completion-1105'); fs.mkdirSync(out, { recursive: true })
 const run = Date.now().toString().slice(-9), areaName = 'PC完工区域' + run, workerName = 'PC名单工人' + run, workerCode = 'PCW' + run
 const passed = [], errors = [], blocked = [], states = new Map(), fixtures = {}, writes = []

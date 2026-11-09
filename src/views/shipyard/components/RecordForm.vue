@@ -11,7 +11,9 @@
           <el-form-item label="结束日期"><el-date-picker v-model="form.end" value-format="YYYY-MM-DD" aria-label="结束日期" /></el-form-item>
         </div>
         <el-form-item v-else label="施工日期"><el-date-picker v-model="form.date" value-format="YYYY-MM-DD" aria-label="施工日期" /></el-form-item>
-        <el-form-item label="工作人员"><el-select v-model="form.people" multiple filterable aria-label="工作人员"><el-option v-for="p in data.people" :key="p.id" :value="p.id" :label="p.name+' · '+p.code" /></el-select></el-form-item>
+        <el-form-item label="工作人员班组筛选"><TeamSelect v-model="teamFilter" label="工作人员班组筛选" filter /></el-form-item>
+        <el-form-item label="具体班组筛选"><CrewSelect v-model="crewFilter" :crews="data.crews" label="具体班组筛选" filter /></el-form-item>
+        <el-form-item label="工作人员"><el-select v-model="form.people" multiple filterable aria-label="工作人员"><el-option v-for="p in filteredPeople" :key="p.id" :value="p.id" :label="p.name+' · '+p.code" /></el-select></el-form-item>
         <el-form-item v-if="form.type==='包工'" label="承包总价"><el-input-number v-model="form.amount" :min="0.01" :precision="2" aria-label="承包总价" /></el-form-item>
         <el-form-item v-if="form.type==='加班'" label="每人加班小时"><el-input-number v-model="form.duration" :min="0.01" :max="16" :precision="2" aria-label="加班时长" /><span class="hint">加班与正常时薪相同</span></el-form-item>
         <el-table :data="people" size="small">
@@ -28,7 +30,7 @@
       <template v-else>
         <el-form-item label="业务日期"><el-date-picker v-model="form.date" value-format="YYYY-MM-DD" aria-label="业务日期" /></el-form-item>
         <el-form-item v-if="kind==='报销'" label="报销类别"><el-select v-model="form.category" aria-label="报销类别"><el-option v-for="c in categories" :key="c" :label="c" :value="c" /></el-select></el-form-item>
-        <el-form-item v-else label="被罚人员"><el-select v-model="form.person" filterable aria-label="被罚人员"><el-option v-for="p in data.people" :key="p.id" :value="p.id" :label="p.name+' · '+p.code" /></el-select></el-form-item>
+        <template v-else><el-form-item label="具体班组筛选"><CrewSelect v-model="crewFilter" :crews="data.crews" label="具体班组筛选" filter /></el-form-item><el-form-item label="工作人员班组筛选"><TeamSelect v-model="teamFilter" label="工作人员班组筛选" filter /></el-form-item><el-form-item label="被罚人员"><el-select v-model="form.person" filterable aria-label="被罚人员"><el-option v-for="p in filteredPeople" :key="p.id" :value="p.id" :label="p.name+' · '+p.code" /></el-select></el-form-item></template>
         <el-form-item :label="kind+'金额'"><el-input-number v-model="form.amount" :min="0.01" :precision="2" :aria-label="kind+'金额'" /></el-form-item>
       </template>
       <el-form-item :label="kind==='报销'?'报销用途':kind==='罚款'?'罚款原因':'施工备注'"><el-input v-model="form.note" type="textarea" :rows="3" maxlength="500" show-word-limit aria-label="申请说明" /></el-form-item>
@@ -48,9 +50,16 @@ import {ElMessage} from 'element-plus'
 import {uploadImage,requestKey,money} from '@/api/shipyard'
 import {sumHourlyWages} from '@/utils/wage-preview'
 import PrivateImages from './PrivateImages.vue'
+import TeamSelect from './TeamSelect.vue'
+import {matchesTeam} from '@/utils/shipyard-teams'
+import CrewSelect from './CrewSelect.vue'
+import {matchesCrew} from '@/utils/shipyard-crews'
 const props=defineProps({kind:String,data:Object,projectId:[Number,String],record:Object,write:Function}),emit=defineEmits(['close','saved'])
 const categories=['劳保用品','材料采购','交通差旅','设备维修','其他费用']
 const busy=ref(false),uploading=ref(false),error=ref('')
+const teamFilter=ref('all')
+const crewFilter=ref('all')
+const filteredPeople=computed(()=>props.data.people.filter(p=>matchesTeam(p,teamFilter.value)&&matchesCrew(p,crewFilter.value)))
 const draftProject=props.record?.projectId ?? props.projectId
 function draftKey(projectId=draftProject){return 'shipyard-pc-draft-v2-'+JSON.stringify([props.data.user.id,props.kind,String(projectId),props.record?[String(props.record.id),props.record.version]:'new'])}
 let draft={}

@@ -16,6 +16,7 @@
      <p v-else class="hint">系统自动创建登录账号并绑定该微信，无需设置密码。</p>
      <el-form-item label="分配角色"><el-checkbox-group v-model="form.roleIds"><el-checkbox v-for="r in accounts.roles" :key="r.id" :value="r.id">{{r.name}}</el-checkbox></el-checkbox-group></el-form-item>
      <el-form-item label="可访问工程"><el-checkbox-group v-model="form.projectIds"><el-checkbox v-for="p in projects" :key="p.id" :value="p.id">{{p.name}}</el-checkbox></el-checkbox-group></el-form-item>
+     <el-form-item v-if="isLeader" label="组长班组分类"><TeamSelect v-model="form.teamCategory" label="组长班组分类" :disabled="busy" /></el-form-item>
      <p class="hint">至少分配一个角色。管理员、项目经理、负责人可访问全部工程，其他角色须分配具体工程。</p>
      <el-form-item label="拒绝原因（拒绝时必填）"><el-input v-model="form.reason" type="textarea" :rows="2" maxlength="300" aria-label="注册审核意见" placeholder="例如：请补充所属工程与班组"/></el-form-item>
     </el-form>
@@ -29,17 +30,19 @@
 import {ref,computed,onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
 import {shipyardApi} from '@/api/shipyard'
+import TeamSelect from './TeamSelect.vue'
 const props=defineProps({accounts:Object,projects:Array}),emit=defineEmits(['updated'])
 const rows=ref([]),loading=ref(false),busy=ref(false),error=ref(''),reviewError=ref(''),filter=ref('pending'),editing=ref(false),selected=ref(null),mode=ref('new'),form=ref({})
 const labels={pending:'待审核',approved:'已通过并绑定',rejected:'已拒绝'}
 const pending=computed(()=>rows.value.filter(r=>r.status==='pending').length)
 const visible=computed(()=>filter.value==='all'?rows.value:rows.value.filter(r=>r.status==='pending'))
 const availableUsers=computed(()=>props.accounts.users.filter(u=>u.id!==1&&u.status==='0'&&!u.wechatBound))
+const isLeader=computed(()=>props.accounts.roles.some(r=>r.key==='sy_leader'&&form.value.roleIds?.includes(r.id)))
 async function load(){loading.value=true;try{rows.value=await shipyardApi('/wechat/registrations');error.value=''}catch(e){error.value=e.message}finally{loading.value=false}}
-function open(row){selected.value=JSON.parse(JSON.stringify(row));form.value={roleIds:[],projectIds:[],reason:'',userId:null};mode.value='new';reviewError.value='';editing.value=true}
+function open(row){selected.value=JSON.parse(JSON.stringify(row));form.value={roleIds:[],projectIds:[],reason:'',userId:null,teamCategory:''};mode.value='new';reviewError.value='';editing.value=true}
 function close(done){if(busy.value)return;editing.value=false;if(typeof done==='function')done()}
-function changeMode(){form.value.userId=null;form.value.roleIds=[];form.value.projectIds=[]}
-function selectUser(id){const user=props.accounts.users.find(u=>u.id===id);form.value.roleIds=[...(user?.roleIds||[])];form.value.projectIds=[...(user?.projectIds||[])]}
+function changeMode(){form.value.userId=null;form.value.roleIds=[];form.value.projectIds=[];form.value.teamCategory=''}
+function selectUser(id){const user=props.accounts.users.find(u=>u.id===id);form.value.roleIds=[...(user?.roleIds||[])];form.value.projectIds=[...(user?.projectIds||[])];form.value.teamCategory=user?.teamCategory||''}
 async function review(accept){
  if(busy.value||!selected.value)return
  reviewError.value=''

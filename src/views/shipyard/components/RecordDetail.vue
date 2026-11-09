@@ -18,7 +18,7 @@
     </section>
     <section v-if="item.kind==='罚款' && item.status==='会计待处理' && can('fine:handle') && !changed"><h3>登记罚款收款</h3><el-input v-model="receiptNote" placeholder="填写实际收款方式或凭证编号" aria-label="收款说明" maxlength="500"/><div class="action-row"><el-button type="primary" :loading="busy" @click="receive">登记已收款</el-button></div></section>
     <h3>处理记录</h3><el-timeline><el-timeline-item v-for="a in item.audit" :key="a.id" :timestamp="String(a.time)">{{a.actor}} · {{a.action}} · {{a.status}}<p v-if="a.opinion">{{a.opinion}}</p></el-timeline-item></el-timeline>
-    <template #footer><el-button v-if="item.status==='已退回'&&item.createdBy===data.user.id" type="primary" @click="emit('edit',item)">修改并重新提交</el-button><el-button @click="close" :disabled="busy">关闭</el-button></template>
+    <template #footer><el-button v-if="editable" type="primary" :disabled="busy" @click="emit('edit',item)">修改并重新提交</el-button><el-button @click="close" :disabled="busy">关闭</el-button></template>
   </el-drawer>
 </template>
 <script setup>
@@ -30,10 +30,11 @@ import SignaturePad from './SignaturePad.vue'
 const props=defineProps({record:Object,data:Object,can:Function,write:Function}),emit=defineEmits(['close','edit'])
 const item=ref(JSON.parse(JSON.stringify(props.record))),busy=ref(false),error=ref(''),opinion=ref(''),signature=ref(''),proof=ref(''),receiptNote=ref(''),paidDate=ref(props.data.serverDate),method=ref('银行转账')
 const changed=computed(()=>{const latest=props.data.records.find(r=>r.id===item.value.id);return !latest||latest.version>item.value.version})
+const editable=computed(()=>item.value.status==='已退回'&&item.value.createdBy===props.data.user.id&&!changed.value&&props.can(item.value.kind==='用工'?'work:submit':item.value.kind==='罚款'?'fine:submit':'expense:submit'))
 const reviewable=computed(()=>{const r=item.value;if(r.createdBy===props.data.user.id)return false;if(r.status==='待负责人签字')return props.can('expense:confirm')&&r.managerId!==props.data.user.id;return r.status==='待审批'&&props.can(r.kind==='用工'?'work:approve':r.kind==='罚款'?'fine:approve':'expense:approve')})
 function close(){if(!busy.value)emit('close')}
 async function run(action){if(busy.value)return;busy.value=true;error.value='';try{await action()}catch(e){if(e!=='cancel'&&e!=='close')error.value=e.message||String(e)}finally{busy.value=false}}
-const reload=()=>run(async()=>{item.value=await shipyardApi('/records/'+item.value.id);signature.value='';opinion.value=''})
+const reload=()=>run(async()=>{item.value=await shipyardApi('/records/'+item.value.id);signature.value='';opinion.value='';proof.value='';receiptNote.value='';paidDate.value=props.data.serverDate;method.value='银行转账'})
 const sign=file=>run(async()=>{signature.value=await uploadImage(file)})
 const uploadProof=e=>run(async()=>{try{if(e.target.files[0])proof.value=await uploadImage(e.target.files[0])}finally{e.target.value=''}})
 const review=accept=>run(async()=>{if(!accept&&!opinion.value.trim())throw Error('退回必须填写原因');item.value=await props.write('/records/'+item.value.id+'/review',{version:item.value.version,accept,opinion:opinion.value,signature:signature.value});signature.value='';ElMessage.success(accept?'审批已通过':'已退回申请人')})

@@ -36,14 +36,15 @@
         >
           <template #prefix><svg-icon icon-class="validCode" class="el-input__icon input-icon" /></template>
         </el-input>
-        <div class="login-code">
-          <img :src="codeUrl" @click="getCode" class="login-code-img"/>
+        <div class="login-code" role="button" tabindex="0" aria-label="刷新验证码" @click="getCode" @keydown.enter.prevent="getCode" @keydown.space.prevent="getCode">
+          <img :src="codeUrl" class="login-code-img"/>
         </div>
       </el-form-item>
       <el-checkbox v-model="loginForm.rememberMe" style="margin:0px 0px 25px 0px;">记住账号</el-checkbox>
       <el-form-item style="width:100%;">
         <el-button
           :loading="loading"
+          :disabled="captchaLoading || !captchaReady"
           size="large"
           type="primary"
           style="width:100%;"
@@ -93,6 +94,8 @@ const loginRules = {
 
 const codeUrl = ref("")
 const loading = ref(false)
+const captchaLoading = ref(false), captchaReady = ref(false)
+let captchaRequest = 0
 // 验证码开关
 const captchaEnabled = ref(true)
 // 注册开关
@@ -104,8 +107,9 @@ watch(route, (newRoute) => {
 }, { immediate: true })
 
 function handleLogin() {
+  if (loading.value || captchaLoading.value || !captchaReady.value) return
   proxy.$refs.loginRef.validate(valid => {
-    if (valid) {
+    if (valid && !loading.value && !captchaLoading.value && captchaReady.value) {
       loading.value = true
       // 仅记住账号；兼容清理旧版本持久化的密码。
       Cookies.remove("password")
@@ -126,25 +130,41 @@ function handleLogin() {
           }
           return acc
         }, {})
-        router.push({ path: redirect.value || "/", query: otherQueryParams })
+        return router.push({ path: redirect.value || "/", query: otherQueryParams })
+      }).then(() => {
+        // A failed profile/menu load can redirect back to this same login component.
+        if (router.currentRoute.value.path === "/login" && captchaEnabled.value) return getCode()
       }).catch(() => {
-        loading.value = false
         // 重新获取验证码
-        if (captchaEnabled.value) {
-          getCode()
-        }
+        if (captchaEnabled.value) return getCode()
+      }).finally(() => {
+        loading.value = false
       })
     }
   })
 }
 
 function getCode() {
-  getCodeImg().then(res => {
+  const request = ++captchaRequest
+  captchaLoading.value = true
+  captchaReady.value = false
+  loginForm.value.uuid = ""
+  loginForm.value.code = ""
+  return getCodeImg().then(res => {
+    if (request !== captchaRequest) return
     captchaEnabled.value = res.captchaEnabled === undefined ? true : res.captchaEnabled
     if (captchaEnabled.value) {
       codeUrl.value = "data:image/gif;base64," + res.img
       loginForm.value.uuid = res.uuid
     }
+    captchaReady.value = true
+  }).catch(() => {
+    // The request layer shows the Chinese error; keep the retry control usable.
+    if (request !== captchaRequest) return
+    codeUrl.value = ""
+    loginForm.value.uuid = ""
+  }).finally(() => {
+    if (request === captchaRequest) captchaLoading.value = false
   })
 }
 
